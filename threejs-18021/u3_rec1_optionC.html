@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+    /* # OVERLAY STYLE */
+    /* Don't put these in a stylesheet, they might not load before the javascript, defeating the purpose */
+    .overlay {
+        position:absolute;
+        text-align:center;
+        left:0;
+        top:0;
+        width:100%;
+        height:100%;
+        z-index:99;
+        display:block;
+        pointer-events:none; /* so any clicks on overlays get passed to the underlying canvas */
+    }
+    #overlay1 {
+        background-color: rgba(127, 127, 127, 1);
+        z-index:100;
+    }
+    #overlay2 {
+        cursor:pointer;
+        background-color: rgba(127, 127, 127, .5);
+        z-index:99;
+    }
+    .overlayText {
+        font-size:500%;
+        opacity:1;
+        font-family:Georgia;
+        position:absolute;
+        top:50%;
+        transform: translate(-50%,-50%);
+    }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<div class="overlay" id="overlay1">
+  <span id="overlay1Text" class="overlayText">
+    Loading 3D...
+  </span>
+</div>
+<!-- <div class="overlay" id="overlay2">
+  <span id="overlay2Text" class="overlayText" style="display:none">
+    Click to interact.
+  </span>
+</div> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="threejs_parulaMap.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="threejs_overlayEvents.js"></script>
+<script>
+    // # Initialize scene and bounding box
+    var scene = createScene();
+    var renderer = createRenderer()
+
+    // # Initialize camera
+    var camera = createCamera();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 0.4, -2.4, 1);
+    scene.add( camera );
+
+    // # Actors
+    var C = addLabel( 'C', 0.25, 0, 0.75, color=color5,font='Arial',size=.8);
+    //Construct the surface
+    var plane = function (a,b, target) {
+        var x = 0.8*a;
+        var y = 0.8*b;
+        var z = (0.8-x)/2+0.1;
+        target.set(x,y,z);
+        return new THREE.Vector3(x, y, z);
+
+    };
+
+    var planeGeometry = new THREE.ParametricGeometry(plane, 32, 32);
+    addColorMapToGeometry(planeGeometry, parulaColorMap);
+    var material = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        vertexColors: THREE.VertexColors,
+        shininess: 20,
+        transparent: 0,
+        opacity: 0.8,
+    } );
+    var loader = new THREE.TextureLoader()
+    loader.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(20, 20);
+        material.map = texture;
+
+        // next two lines signal an asynchronous update
+        material.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    var surfaceMesh = new THREE.Mesh( planeGeometry, material );
+    surfaceMesh.position.set( 0, 0, 0);
+    scene.add( surfaceMesh );
+    
+
+function myArrow(dir,color='#000000',thickness=.01,segments=8) {
+    /*
+        Helper function for drawVector.
+    */
+    var height = dir.length()*(80/100);
+    const shaftGeometry = new THREE.CylinderGeometry( thickness, thickness, height, segments );
+    const shaftMaterial = new THREE.MeshBasicMaterial( {color: color} );
+    const shaft = new THREE.Mesh( shaftGeometry, shaftMaterial );
+    shaft.lookAt(dir);
+    shaft.rotateX(Math.PI/2);
+    shaft.translateY(height/2);
+
+    var headHeight = dir.length()*(20/100);
+    const headGeometry = new THREE.CylinderGeometry( 0, 3*thickness, headHeight, segments );
+    const headMaterial = new THREE.MeshBasicMaterial( {color: color} );
+    const head = new THREE.Mesh( headGeometry, headMaterial );
+    head.lookAt(dir);
+    head.rotateX(Math.PI/2);
+    head.translateY(dir.length()-headHeight/2);
+
+    const group = new THREE.Group();
+    group.add(head);
+    group.add(shaft);
+    return group;
+}
+
+
+    var ar1x = 0;
+    var ar1y = 0.4;
+    var ar13 = 0.7;
+
+    
+
+
+    var arrow1 = new THREE.Vector3( 0.3, 0, 0);
+    var arrow2 = new THREE.Vector3( 0.2, 0, 0);
+    var arrow3 = new THREE.Vector3( 0.1, 0, 0);
+
+
+    var ar11 = myArrow(arrow1,color=color5,thickness=.008);
+    var ar12 = myArrow(arrow1,color=color5,thickness=.008);
+    var ar13 = myArrow(arrow1,color=color5,thickness=.008);
+    var ar21 = myArrow(arrow2,color=color5,thickness=.008);
+    var ar22 = myArrow(arrow2,color=color5,thickness=.008);
+    var ar23 = myArrow(arrow2,color=color5,thickness=.008);
+    var ar31 = myArrow(arrow3,color=color5,thickness=.008);
+    var ar32 = myArrow(arrow3,color=color5,thickness=.008);
+    var ar33 = myArrow(arrow3,color=color5,thickness=.008);
+    scene.add(ar11,ar12,ar13,ar21,ar22,ar23,ar31,ar32,ar33);
+    ar11.position.set(0,0.2,0);
+    ar12.position.set(0,0.4,0);
+    ar13.position.set(0,0.6,0);
+    ar21.position.set(0.4,0.2,0);
+    ar22.position.set(0.4,0.4,0);
+    ar23.position.set(0.4,0.6,0);
+    ar31.position.set(0.7,0.2,0);
+    ar32.position.set(0.7,0.4,0);
+    ar33.position.set(0.7,0.6,0);
+
+    //Create a box to help locate point in 3D space in rectangular coordinates
+    // var pointLocation = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+    // var edges = new THREE.EdgesGeometry( pointLocation );
+    // var edgeMaterial = new THREE.LineDashedMaterial( {
+    //     color: color3,
+    //     linewidth: 10,
+    //     scale: 2,
+    //     dashSize: 0.1,
+    //     gapSize: 0.05,
+    // } );
+    // var rectangularPrism = new THREE.LineSegments( edges, edgeMaterial );
+    // rectangularPrism.computeLineDistances();
+    // rectangularPrism.position.set( 0.4, 0.4, 0.4 );
+    // scene.add(rectangularPrism);
+ 
+    // Axes
+    scene.add(makeAxes());
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0.4, 0.4, 0.4);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Document loaded
+    $( document ).ready(function() {
+      // # Display first time
+      overlaySetup();
+      render();
+      controls.update();
+      autoRotate_until_clicked(controls, render);
+    });
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+    /* # OVERLAY STYLE */
+    /* Don't put these in a stylesheet, they might not load before the javascript, defeating the purpose */
+    .overlay {
+        position:absolute;
+        text-align:center;
+        left:0;
+        top:0;
+        width:100%;
+        height:100%;
+        z-index:99;
+        display:block;
+        pointer-events:none; /* so any clicks on overlays get passed to the underlying canvas */
+    }
+    #overlay1 {
+        background-color: rgba(127, 127, 127, 1);
+        z-index:100;
+    }
+    #overlay2 {
+        cursor:pointer;
+        background-color: rgba(127, 127, 127, .5);
+        z-index:99;
+    }
+    .overlayText {
+        font-size:500%;
+        opacity:1;
+        font-family:Georgia;
+        position:absolute;
+        top:50%;
+        transform: translate(-50%,-50%);
+    }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<div class="overlay" id="overlay1">
+  <span id="overlay1Text" class="overlayText">
+    Loading 3D...
+  </span>
+</div>
+<!-- <div class="overlay" id="overlay2">
+  <span id="overlay2Text" class="overlayText" style="display:none">
+    Click to interact.
+  </span>
+</div> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<!-- <script type="text/javascript" src="dat.gui.min.js"></script> -->
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="threejs_overlayEvents.js"></script>
+
+
+<script>
+    // # Initialize scene and bounding box
+    var scene = createScene();
+    var renderer = createRenderer();
+    
+    // # Initialize camera
+    var camera = createOrthographicCameraDynamically();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 2.8, 0.9, 1.7 );
+    scene.add( camera );
+
+    // # Actors
+    var geometry = new THREE.SphereGeometry( 1/3, 48, 24 );
+    var material = new THREE.MeshPhongMaterial( {
+        side: THREE.DoubleSide,
+        color: color2,
+
+    } );
+
+    sphere =  new THREE.Mesh( geometry, material );
+    scene.add( sphere );
+
+    var planeGeom = function (a, b, target) {
+        var x = 2/3;
+        var y = 0.2*(a-0.5);
+        var z = 0.2*(b-0.5);
+
+        target.set(x,y,z);
+
+        return new THREE.Vector3(x, y, z); 
+    }
+
+    var genericGeometry = new THREE.ParametricGeometry(planeGeom, 32, 32);
+    var planematerial = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: color1, 
+        transparent: 0,
+        opacity: 0.8, 
+        shininess: 20
+    } );
+    var surfaceMesh = new THREE.Mesh( genericGeometry, planematerial );
+    surfaceMesh.position.set( 0, 0, 0);
+    scene.add( surfaceMesh );
+
+
+    var xval = 2/3+0.1;
+    var yval = 0;
+    var zval = 0;
+    var camerageometry = new THREE.SphereGeometry( 0.02 , 48, 24 );
+    var cameramaterial = new THREE.MeshPhongMaterial( {
+        side: THREE.DoubleSide,
+        color: "black"
+    } );
+
+    cameralocation =  new THREE.Mesh( camerageometry, cameramaterial );
+    scene.add( cameralocation );
+    cameralocation.position.set(xval,yval,zval);
+
+    //curves in theplane
+    var parabola = new THREE.Curve();
+    parabola.getPoint = function(t) {
+        s = 10*t;
+        return new THREE.Vector3(
+            2/3+0.1 - s,
+            -0.5*s,
+            -0.5*s
+        );
+    };
+
+    var ray1 = new THREE.Curve();
+    ray1.getPoint = function(t) {
+        s = 10*t;
+        return new THREE.Vector3(
+            2/3+0.1 - s,
+            -0.25*s,
+            -0.25*s
+        );
+    };
+    var ray2 = new THREE.Curve();
+    ray2.getPoint = function(t) {
+        s = 10*t;
+        return new THREE.Vector3(
+            2/3+0.1 - s,
+            -0.5*s,
+            0
+        );
+    };
+
+    var ray3 = new THREE.Curve();
+    ray3.getPoint = function(t) {
+        s = 10*t;
+        return new THREE.Vector3(
+            2/3+0.1 - s,
+            0.3*s,
+            0.2*s
+        );
+    };
+
+    var ray4 = new THREE.Curve();
+    ray4.getPoint = function(t) {
+        s = 10*t;
+        return new THREE.Vector3(
+            2/3+0.1 - s,
+            0,
+            0.4*s
+        );
+    };
+    // Scene: paraboloid and axes
+
+    //Construct the surface
+    var curveGeometry = new THREE.TubeGeometry(parabola, 100, 0.005, 32);
+    var ray1Geometry = new THREE.TubeGeometry(ray1, 100, 0.005, 32);
+    var ray2Geometry = new THREE.TubeGeometry(ray2, 100, 0.005, 32);
+    var ray3Geometry = new THREE.TubeGeometry(ray3, 100, 0.005, 32);
+    var ray4Geometry = new THREE.TubeGeometry(ray4, 100, 0.005, 32);
+    var curveMaterial = new THREE.MeshBasicMaterial( {color: color3} );
+    var curveMesh = new THREE.Mesh( curveGeometry, curveMaterial );
+    var ray1Mesh = new THREE.Mesh( ray1Geometry, curveMaterial );
+    var ray2Mesh = new THREE.Mesh( ray2Geometry, curveMaterial );
+    var ray3Mesh = new THREE.Mesh( ray3Geometry, curveMaterial );
+    var ray4Mesh = new THREE.Mesh( ray4Geometry, curveMaterial );
+    scene.add( curveMesh, ray1Mesh , ray2Mesh, ray3Mesh, ray4Mesh );
+
+
+    // Axes
+    scene.add(makeAxes());
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0, 0, 0);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Document loaded
+    $( document ).ready(function() {
+      // # Display first time
+      overlaySetup();
+      render();
+      controls.update();
+      autoRotate_until_clicked(controls, render);
+    });
+</script>
+
+
+</body>
+</html>

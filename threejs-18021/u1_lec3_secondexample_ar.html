@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script>
+    // # Initialize scene and bounding box
+    let scene = createScene();
+    let renderer = createRenderer()
+
+    // # Initialize camera
+    let camera = createCamera();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 1.7, 1.4, 2.1);
+    scene.add( camera );
+
+    // # Actors
+    //curves in theplane
+    let curve1 = new THREE.Curve();
+    curve1.getPoint = function(t) {
+        s = 2*(t-0.5);
+        return new THREE.Vector3(
+            s/Math.sqrt(2),
+            0,
+            0.5-s*s
+        );
+    };
+
+    let curve2 = new THREE.Curve();
+    curve2.getPoint = function(t) {
+        s = 2*(t-0.5);
+        return new THREE.Vector3(
+            0,
+            s/Math.sqrt(2),
+            0.5-s*s
+        );
+    };
+
+    let curve3 = new THREE.Curve();
+    curve3.getPoint = function(t) {
+        s = 2*t*Math.PI;
+        return new THREE.Vector3(
+            Math.cos(s)/2,
+            Math.sin(s)/2,
+            0
+        );
+    };
+
+
+
+    // Scene: paraboloid and axes
+
+    //Construct the surface
+    const curve1Geometry = new THREE.TubeGeometry(curve1, 100, 0.005, 32);
+    const curve2Geometry = new THREE.TubeGeometry(curve2, 100, 0.005, 32);
+    const curve3Geometry = new THREE.TubeGeometry(curve3, 100, 0.005, 32);
+    const material = new THREE.MeshBasicMaterial( {color: color3} );
+    const curve1Mesh = new THREE.Mesh( curve1Geometry, material );
+    const curve2Mesh = new THREE.Mesh( curve2Geometry, material );
+    const curve3Mesh = new THREE.Mesh( curve3Geometry, material );
+    //curveMesh.position.set( 0, 0, 0);
+    scene.add( curve1Mesh );
+    scene.add( curve2Mesh );
+    scene.add( curve3Mesh );
+
+    //add the paraboloid
+    const paraboloid = function (a,b, target) {
+        let u = Math.sqrt(2)*(a-0.5);
+        let v = Math.sqrt(2)*(b-0.5);
+        let x = u*Math.sqrt(1-v*v/Math.sqrt(2));
+        let y = v*Math.sqrt(1-u*u/Math.sqrt(2));
+        let z = 0.5 - 2*x*x - 2*y*y;
+        target.set(x,y,z);
+        return new THREE.Vector3(x, y, z);
+
+    };
+    //Construct the surface
+    const paraboloidGeometry = new THREE.ParametricGeometry(paraboloid, 32, 32);
+    const surfaceMaterial = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: color2, 
+        transparent: 0,
+        opacity: 0.8, 
+        shininess: 20
+    } );
+    const loader = new THREE.TextureLoader()
+    loader.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(15, 15);
+        surfaceMaterial.map = texture;
+
+        // next two lines signal an asynchronous update
+        surfaceMaterial.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    const surfaceMesh = new THREE.Mesh( paraboloidGeometry, surfaceMaterial );
+    surfaceMesh.position.set( 0, 0, 0);
+    scene.add( surfaceMesh );
+
+    // var wireframeGeometry = new THREE.WireframeGeometry( paraboloidGeometry );
+    // var wireframeMaterial = new THREE.LineBasicMaterial( {color: color1} );
+    // var wireframeMesh = new THREE.LineSegments( wireframeGeometry , wireframeMaterial);
+    // wireframeMesh.position.set( 0, 0, 0);
+    // scene.add( wireframeMesh );
+    
+ 
+    // Axes
+    scene.add(makeAxes());
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0, 0, 0.25);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    render();
+        // Set the auto rotate until clicked
+    controls.autoRotate = true;
+    controls.addEventListener('start', function(){
+      controls.autoRotate = false;
+    });
+    function animate() {
+      requestAnimationFrame( animate );
+      controls.update();
+      renderer.render( scene, camera );
+    }
+    animate();
+</script>
+
+
+</body>
+</html>

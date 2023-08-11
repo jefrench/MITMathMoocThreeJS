@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script>
+    // # Initialize scene and bounding box
+    let scene = createScene();
+    let renderer = createRenderer()
+
+    // # Initialize camera
+    let camera = createCamera();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 2, 2, 2);
+    scene.add( camera );
+
+    // # Actors
+    //curves in theplane
+    let parabola = new THREE.Curve();
+    parabola.getPoint = function(t) {
+        s = 2*(t-0.5);
+        return new THREE.Vector3(
+            0,
+            s/Math.sqrt(2),
+            0.5-s*s
+        );
+    };
+
+    // Scene: paraboloid and axes
+
+    //Construct the surface
+    const curveGeometry = new THREE.TubeGeometry(parabola, 100, 0.005, 32);
+    const material = new THREE.MeshBasicMaterial( {color: color3} );
+    const curveMesh = new THREE.Mesh( curveGeometry, material );
+    //curveMesh.position.set( 0, 0, 0);
+    scene.add( curveMesh );
+
+    // var wireframeGeometry = new THREE.WireframeGeometry( surfaceGeometry );
+    // var wireframeMaterial = new THREE.LineBasicMaterial( {color: color1} );
+    // var wireframeMesh = new THREE.LineSegments( wireframeGeometry , wireframeMaterial);
+    // wireframeMesh.position.set( 0, 0, 0);
+    // scene.add( wireframeMesh );
+
+    // const xline = new THREE.CylinderGeometry( 0.008, 0.008, 1.9, 32 );
+    // const yline = new THREE.CylinderGeometry( 0.008, 0.008, 1.75, 32 );
+    // const materialLine = new THREE.MeshBasicMaterial( {color: color3} );
+    // const planeLineX = new THREE.Mesh( xline, materialLine );
+    // const planeLineY = new THREE.Mesh( yline, materialLine );
+    // const vect1 = new THREE.Vector3( 0.5, 0.2, 1 );
+    // const vect2 = new THREE.Vector3( 0.2, .25, 1 );
+
+    // planeLineY.translateX(0.2);
+    // planeLineY.lookAt(vect2);
+    // scene.add( planeLineY );
+
+    // planeLineX.translateY(0.4)
+    // planeLineX.lookAt(vect1);
+    // planeLineX.rotateZ(Math.PI/2);
+    // scene.add( planeLineX );
+    
+ 
+    // Axes
+    scene.add(makeAxes());
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0, 0, 0.25);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    render();
+        // Set the auto rotate until clicked
+    controls.autoRotate = true;
+    controls.addEventListener('start', function(){
+      controls.autoRotate = false;
+    });
+    function animate() {
+      requestAnimationFrame( animate );
+      controls.update();
+      renderer.render( scene, camera );
+    }
+    animate();
+</script>
+
+
+</body>
+</html>

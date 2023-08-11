@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+    /* # OVERLAY STYLE */
+    /* Don't put these in a stylesheet, they might not load before the javascript, defeating the purpose */
+    .overlay {
+        position:absolute;
+        text-align:center;
+        left:0;
+        top:0;
+        width:100%;
+        height:100%;
+        z-index:99;
+        display:block;
+        pointer-events:none; /* so any clicks on overlays get passed to the underlying canvas */
+    }
+    #overlay1 {
+        background-color: rgba(127, 127, 127, 1);
+        z-index:100;
+    }
+    #overlay2 {
+        cursor:pointer;
+        background-color: rgba(127, 127, 127, .5);
+        z-index:99;
+    }
+    .overlayText {
+        font-size:500%;
+        opacity:1;
+        font-family:Georgia;
+        position:absolute;
+        top:50%;
+        transform: translate(-50%,-50%);
+    }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<div class="overlay" id="overlay1">
+  <span id="overlay1Text" class="overlayText">
+    Loading 3D...
+  </span>
+</div>
+<!-- <div class="overlay" id="overlay2">
+  <span id="overlay2Text" class="overlayText" style="display:none">
+    Click to interact.
+  </span>
+</div> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="threejs_parulaMap.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="threejs_overlayEvents.js"></script>
+<script>
+    // # Initialize scene and bounding box
+    var scene = createScene();
+    var renderer = createRenderer()
+
+    // # Initialize camera
+    var camera = createCamera();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 1.2, 2.7, 1.6 );
+    scene.add( camera );
+
+    // # Actors
+    var surface = function (a,b, target) {
+        //map the square unit interval to the square of side length 2 centered at origin
+        var x = (a-0.5) + (b-0.5)*2;
+        var y = (b-0.5)-2*(a-0.5);
+        var z = x+y/2;
+        target.set(x,y,z);
+        return new THREE.Vector3(x, y, z);
+
+    };
+    // Scene: paraboloid and axes
+
+    //Construct the surface
+    var surfaceGeometry = new THREE.ParametricGeometry(surface, 32, 32);
+    addColorMapToGeometry(surfaceGeometry, parulaColorMap);
+    var material = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        vertexColors: THREE.VertexColors,
+        shininess: 20,
+    } );
+
+    var surfaceMesh = new THREE.Mesh( surfaceGeometry, material );
+    surfaceMesh.position.set( 0, 0, 0);
+    scene.add( surfaceMesh );
+
+    var grad = new THREE.Vector3( 0.4,0.2, 0);
+    var gradVec = fatArrow(grad,color=color3);
+    scene.add(gradVec);
+    gradVec.position.set(0.5,0,0.5);
+
+    var rise = new THREE.Curve();
+    rise.getPoint = function(t) {
+        return new THREE.Vector3(
+            0.9,
+            0.2,
+            0.5+t*0.5
+        );
+    };
+
+    var slope = new THREE.Curve();
+    slope.getPoint = function(t) {
+        var x = 0.5+t*0.4;
+        var y = t/2*0.4
+        return new THREE.Vector3(
+            x,
+            y,
+            x+y/2
+        );
+    };
+
+    var ht1 = new THREE.Curve();
+    ht1.getPoint = function(t) {
+        return new THREE.Vector3(
+            t-0.1,
+            (0.5-t+0.1)*2,
+            0.5
+        );
+    };
+    var ht2 = new THREE.Curve();
+    ht2.getPoint = function(t) {
+        return new THREE.Vector3(
+            (t+0.3),
+            (1-t-0.3)*2,
+            1
+        );
+    };
+
+    var curveGeometry1 = new THREE.TubeGeometry(rise, 100, 0.01, 32);
+    var curveGeometry2 = new THREE.TubeGeometry(slope, 100, 0.01, 32);
+    var curveGeometry3 = new THREE.TubeGeometry(ht1, 100, 0.01, 32);
+    var curveGeometry4 = new THREE.TubeGeometry(ht2, 100, 0.01, 32);
+    var curveMaterial = new THREE.MeshBasicMaterial( {color: color3} );
+    var levelMaterial = new THREE.MeshBasicMaterial( {color: black} );
+    var curveMesh1 = new THREE.Mesh( curveGeometry1, curveMaterial );
+    var curveMesh2 = new THREE.Mesh( curveGeometry2, curveMaterial );
+    var curveMesh3 = new THREE.Mesh( curveGeometry3, levelMaterial );
+    var curveMesh4 = new THREE.Mesh( curveGeometry4, levelMaterial );
+    //curveMesh.position.set( 0, 0, 0);
+    scene.add( curveMesh1, curveMesh2, curveMesh3, curveMesh4);
+ 
+    var runLabel = addLabel( 'run', 0.8, 0.2, 0.4, color=color5,font='Arial',size=.8);
+    var riseLabel = addLabel( 'rise', 1.1, 0.3, 0.7, color=color5,font='Arial',size=.8);
+    //Construct the surface
+
+
+    // Axes
+    scene.add(makeAxes());
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0, 0, 0.5);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Document loaded
+    $( document ).ready(function() {
+      // # Display first time
+      overlaySetup();
+      render();
+      controls.update();
+      autoRotate_until_clicked(controls, render);
+    });
+</script>
+
+
+</body>
+</html>

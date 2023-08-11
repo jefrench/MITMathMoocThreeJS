@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+    /* # OVERLAY STYLE */
+    /* Don't put these in a stylesheet, they might not load before the javascript, defeating the purpose */
+    .overlay {
+        position:absolute;
+        text-align:center;
+        left:0;
+        top:0;
+        width:100%;
+        height:100%;
+        z-index:99;
+        display:block;
+        pointer-events:none; /* so any clicks on overlays get passed to the underlying canvas */
+    }
+    #overlay1 {
+        background-color: rgba(127, 127, 127, 1);
+        z-index:100;
+    }
+    #overlay2 {
+        cursor:pointer;
+        background-color: rgba(127, 127, 127, .5);
+        z-index:99;
+    }
+    .overlayText {
+        font-size:200%;
+        opacity:1;
+        font-family:Georgia;
+        position:absolute;
+        top:50%;
+        transform: translate(-50%,-50%);
+    }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<div class="overlay" id="overlay1">
+  <span id="overlay1Text" class="overlayText">
+    Loading 3D...
+  </span>
+</div>
+<!--<div class="overlay" id="overlay2">
+  <span id="overlay2Text" class="overlayText" style="display:none">
+    Click to interact.
+  </span>
+</div>-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="threejs_overlayEvents.js"></script>
+<script>
+    // # Initialize scene and bounding box
+    var scene = createScene();
+    var renderer = createRenderer()
+
+    // # Initialize camera
+    var camera = createCamera();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 3, 2, 1.7);
+    scene.add( camera );
+
+    // # Actors
+
+
+    //Construct the surface
+    var multiFunct = function(a,b) {
+        return 1.5*a*a*a*a -a*a+ b*b
+    }
+
+    var xPartial = function(a,b) {
+        return 4*1.5*a*a*a -2*a
+    }
+
+    var yPartial = function(a,b) {
+        return 2*b
+    }
+
+    var saddle = function (a,b, target) {
+        var x = 2*(a-0.5);
+        var y = 2*(b-0.5);
+        var z = multiFunct(x,y);
+        target.set(x,y,z);
+        return new THREE.Vector3(x, y, z);
+
+    };
+
+    var saddleGeometry = new THREE.ParametricGeometry(saddle, 32, 32);
+    var material = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: color2, 
+        transparent: 0,
+        opacity: 0.8, 
+        shininess: 20
+    } );
+    var loader = new THREE.TextureLoader()
+    loader.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(20, 20);
+        material.map = texture;
+
+        // next two lines signal an asynchronous update
+        material.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    var surfaceMesh = new THREE.Mesh( saddleGeometry, material );
+    surfaceMesh.position.set( 0, 0, 0);
+    scene.add( surfaceMesh );
+    
+ 
+    //Choose an arbitrary point on the surface
+    var xval = 0.7
+    var yval = 0.7
+    var zval = multiFunct(xval,yval)
+
+    var point = new THREE.SphereGeometry( 0.01, 20, 20 );
+    var pointMaterial = new THREE.MeshBasicMaterial( {color: color3, transparent: 0, opacity: 1} );
+    var sphere = new THREE.Mesh( point, pointMaterial );
+    sphere.position.set( xval, yval, zval );
+    scene.add( sphere );
+
+    //construct lines indicating the plane of slice
+    //var yline = new THREE.CylinderGeometry( 0.005, 0.005, 2.2, 32 );
+    var xline = new THREE.CylinderGeometry( 0.005, 0.005, 2.2, 32 );
+    var zline = new THREE.CylinderGeometry(0.005,0.005,1.8,32);
+    var materialLine = new THREE.MeshBasicMaterial( {color: color3} );
+
+    var topX = new THREE.Mesh( xline, materialLine );
+    var bottomX = new THREE.Mesh( xline, materialLine );
+    var leftZ = new THREE.Mesh( zline, materialLine );
+    var rightZ = new THREE.Mesh( zline, materialLine );
+
+    topX.rotateZ(Math.PI/2);
+    topX.translateX(yval);
+    topX.translateZ(1.4);
+    scene.add( topX );
+    bottomX.rotateZ(Math.PI/2);
+    bottomX.translateX(yval);
+    bottomX.translateZ(-0.4);
+    scene.add( bottomX );
+
+    leftZ.rotateX(Math.PI/2);
+    leftZ.translateX(-1.1);
+    leftZ.translateY(0.5);
+    leftZ.translateZ(-yval);
+    scene.add( leftZ );
+
+    rightZ.rotateX(Math.PI/2);
+    rightZ.translateX(1.1);
+    rightZ.translateY(0.5);
+    rightZ.translateZ(-yval);
+    scene.add( rightZ );
+
+    //construct tangent line to surface
+    let tangent = new THREE.Curve();
+    tangent.getPoint = function(t) {
+        s = 0.7*(t-0.5)
+        return new THREE.Vector3(
+            s+xval,
+            yval ,
+            zval + xPartial(xval,yval)*s
+        );
+    };
+    const curveGeometry = new THREE.TubeGeometry(tangent, 100, 0.005, 32);
+    const curveMaterial = new THREE.MeshBasicMaterial( {color: color3} );
+    const curveMesh = new THREE.Mesh( curveGeometry, curveMaterial );
+    scene.add( curveMesh );
+
+    // Axes
+    scene.add(makeAxes());
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(xval, yval, 0.5);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Document loaded
+    $( document ).ready(function() {
+      // # Display first time
+      overlaySetup();
+      render();
+      controls.update();
+      autoRotate_until_clicked(controls, render);
+    });
+</script>
+
+
+</body>
+</html>

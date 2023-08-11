@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+    /* # OVERLAY STYLE */
+    /* Don't put these in a stylesheet, they might not load before the javascript, defeating the purpose */
+    .overlay {
+        position:absolute;
+        text-align:center;
+        left:0;
+        top:0;
+        width:100%;
+        height:100%;
+        z-index:99;
+        display:block;
+        pointer-events:none; /* so any clicks on overlays get passed to the underlying canvas */
+    }
+    #overlay1 {
+        background-color: rgba(127, 127, 127, 1);
+        z-index:100;
+    }
+    #overlay2 {
+        cursor:pointer;
+        background-color: rgba(127, 127, 127, .5);
+        z-index:99;
+    }
+    .overlayText {
+        font-size:500%;
+        opacity:1;
+        font-family:Georgia;
+        position:absolute;
+        top:50%;
+        transform: translate(-50%,-50%);
+    }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<div class="overlay" id="overlay1">
+  <span id="overlay1Text" class="overlayText">
+    Loading 3D...
+  </span>
+</div>
+<!-- <div class="overlay" id="overlay2">
+  <span id="overlay2Text" class="overlayText" style="display:none">
+    Click to interact.
+  </span>
+</div> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<!-- <script type="text/javascript" src="dat.gui.min.js"></script> -->
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="threejs_parulaMap.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="threejs_overlayEvents.js"></script>
+
+
+<script>
+    // # Initialize scene and bounding box
+    var scene = createScene();
+    var renderer = createRenderer();
+    
+    // # Initialize camera
+    var camera = createOrthographicCameraDynamically({top:4.5,bottom:-4.5});
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 12, 1.5, 6 );
+    scene.add( camera );
+
+    // # Actors
+    var hyperboloid = function (a, b, target) {
+        var u = 3*(a-0.5);
+        var v = 2*Math.PI*b
+        var x = 2*Math.sqrt(1+u*u)*Math.cos(v);
+        var y = 2*Math.sqrt(1+u*u)*Math.sin(v);
+        var z = 2*u;
+
+        target.set(x,y,z);
+
+        return new THREE.Vector3(x, y, z); 
+    }
+
+    //Construct the surfaces
+    var hyperboloidGeoemtry = new THREE.ParametricGeometry(hyperboloid, 32, 32);
+    
+    addColorMapToGeometry(hyperboloidGeoemtry, parulaColorMap);
+    var material = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        vertexColors: THREE.VertexColors,
+        shininess: 20,
+    } );
+    var loader = new THREE.TextureLoader()
+    loader.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(10, 20);
+        material.map = texture;
+
+        // next two lines signal an asynchronous update
+        material.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    var surfaceMesh = new THREE.Mesh( hyperboloidGeoemtry, material );
+    scene.add( surfaceMesh );
+
+
+    var planeGeom = function (a, b, target) {
+        var x = 2*(a-0.5);
+        var y = 2*(b-0.5);
+        var z = 2*x+y;
+
+        target.set(x,y,z);
+
+        return new THREE.Vector3(x, y, z); 
+    };
+    var planeGeometry = new THREE.ParametricGeometry(planeGeom, 32, 32);
+    var material2 = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: color2, 
+        transparent: 0,
+        opacity: 0.6, 
+        shininess: 20
+    } );
+    var loader2 = new THREE.TextureLoader()
+    loader2.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(5, 5);
+        material2.map = texture;
+
+        // next two lines signal an asynchronous update
+        material2.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    var planeMesh = new THREE.Mesh( planeGeometry, material2 );
+    planeMesh.position.set(2,1,1);
+    scene.add( planeMesh );
+
+    var point = new THREE.SphereGeometry( 0.05, 20, 20 );
+    var pointMaterial = new THREE.MeshBasicMaterial( {color: "black", transparent: 0, opacity: 1} );
+    var sphere = new THREE.Mesh( point, pointMaterial );
+    sphere.position.set( 2, 1, 1 );
+    scene.add( sphere );
+
+    // Axes
+    //scene.add(makeAxes());
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0, 0, 0);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Document loaded
+    $( document ).ready(function() {
+      // # Display first time
+      overlaySetup();
+      render();
+      render.localClippingEnable = true;
+      controls.update();
+      autoRotate_until_clicked(controls, render);
+    });
+</script>
+
+
+</body>
+</html>

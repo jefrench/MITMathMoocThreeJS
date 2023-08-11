@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<script src="threejs_three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="threejs_jquery-3.6.0.min.js"></script>
+<script>
+    // # Initialize scene and bounding box
+    const scene = createScene();
+    const renderer = createRenderer()
+
+    // # Initialize camera
+    const camera = createCamera();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 3, 3, 3);
+    scene.add( camera );
+
+    // # Actors
+    // Scene: surface with volume-so-far 
+
+    // Axes
+    scene.add(makeAxes({xMax:1.5, yMax:1.5, zMax:1.5}));
+
+    // Helper functions for box_to_volume()
+    const save_original_position = function(g) {
+      g.setAttribute(
+        'original_position',
+        new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').array), 3, true)
+      )
+    };
+    const apply_map_to_positions = function(f, g) {
+      // f(x,y,z) is a vector3
+      const orig_position = g.getAttribute('original_position').array;
+      const positions = g.getAttribute('position').array;
+      for (let i=0; i < positions.length; i+=3) {
+        t = f(orig_position[i], orig_position[i+1],orig_position[i+2]);
+        positions[i+0] = t.x;
+        positions[i+1] = t.y;
+        positions[i+2] = t.z;
+      }
+      g.attributes.position.needsUpdate = true; 
+
+    };
+    const volumeGeometry = new THREE.BoxGeometry(1, 1, 1, 16, 16, 16);
+    const volumeMaterial = new THREE.MeshPhongMaterial( {color: color3, side:THREE.DoubleSide} );
+    const volumeMesh = new THREE.Mesh(volumeGeometry, volumeMaterial);
+    save_original_position(volumeGeometry);
+
+    function cylindrical_to_rectangular(r, theta, z) {
+      const x = r*Math.cos(theta);
+      const y = r*Math.sin(theta);
+      return new THREE.Vector3(x,y,z);
+    }
+
+    const box_to_volume = function(r,theta,z){
+      pt = {r: 0, theta:0, z: 0}; 
+      pt.r = (r+0.5)*(3/4); // r goes from 0 to 3/4
+      pt.theta = (theta+0.5)*Math.PI/2; // theta goes from 0 to pi/2
+      pt.z = (z+0.5)*(1); // z goes from 0 to 1
+      return cylindrical_to_rectangular(pt.r, pt.theta, pt.z); 
+    };
+    apply_map_to_positions(box_to_volume, volumeGeometry);
+    volumeGeometry.computeVertexNormals();
+    volumeGeometry.attributes.position.needsUpdate = true; 
+    scene.add(volumeMesh);
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color) );
+
+    // Custom lights
+    var lights = [{"x":-1, "y":-1, "z":-1, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0, 0, 1/2);
+    controls.update();
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Display first time
+    render();
+    controls.update();
+    autoRotate_until_clicked(controls, render);
+
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+    /* # OVERLAY STYLE */
+    /* Don't put these in a stylesheet, they might not load before the javascript, defeating the purpose */
+    .overlay {
+        position:absolute;
+        text-align:center;
+        left:0;
+        top:0;
+        width:100%;
+        height:100%;
+        z-index:99;
+        display:block;
+        pointer-events:none; /* so any clicks on overlays get passed to the underlying canvas */
+    }
+    #overlay1 {
+        background-color: rgba(127, 127, 127, 1);
+        z-index:100;
+    }
+    #overlay2 {
+        cursor:pointer;
+        background-color: rgba(127, 127, 127, .5);
+        z-index:99;
+    }
+    .overlayText {
+        font-size:200%;
+        opacity:1;
+        font-family:Georgia;
+        position:absolute;
+        top:50%;
+        transform: translate(-50%,-50%);
+    }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<div class="overlay" id="overlay1">
+  <span id="overlay1Text" class="overlayText">
+    Loading 3D...
+  </span>
+</div>
+<div class="overlay" id="overlay2">
+  <span id="overlay2Text" class="overlayText" style="display:none">
+    Click to interact.
+  </span>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="threejs_overlayEvents.js"></script>
+<script>
+    // # Initialize scene and bounding box
+    let scene = createScene();
+    let renderer = createRenderer()
+
+    // # Initialize camera
+    let camera = createCamera();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 3, 1, 0.75 );
+    scene.add( camera );
+
+    // # Actors
+
+    // Scene: generic surface with a point at a,b,f(a,b) and axes
+
+
+    let addTextLabel = function( text, x, y, z, color='black', font='monotype', size=1 ) {
+        var canvas = document.createElement( 'canvas' ); 
+        canvas.width = 256;
+        canvas.height = 256;
+        var context = canvas.getContext( '2d' );
+        c = new THREE.Color(color);
+        color = c.getStyle();
+
+        context.font = 'italic 64px Georgia';
+        context.fillStyle = color;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText( text, canvas.width/2, canvas.height/2);
+
+        var texture = new THREE.Texture( canvas );
+        texture.needsUpdate = true;
+
+        var sprite = new THREE.Sprite( new THREE.SpriteMaterial( { map: texture, color: 0xffffff } ) );
+        sprite.position.set( x, y, z );
+
+        sprite.scale.set(size,size,size); 
+
+        return sprite ;
+
+    }
+
+    const multiFunct = function (a,b) {
+        return (2-a)*(b-0.5)*(b-0.5)+0.3;
+    };
+    //Generic function is a parabola shifted in the yz plane with a slight linear scaling factor with x
+    const genericFunction = function (a, b, target) {
+        let x = a;
+        let y = b*0.85;
+        let z = multiFunct(x,y);
+
+        target.set(x,y,z);
+
+        return new THREE.Vector3(x, y, z); 
+    }
+    //Construct the surface
+    const genericGeometry = new THREE.ParametricGeometry(genericFunction, 32, 32);
+    const material = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: color3, 
+        transparent: 0,
+        opacity: 0.8, 
+        shininess: 20
+    } );
+    const loader = new THREE.TextureLoader()
+    loader.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(10, 8);
+        material.map = texture;
+
+        // next two lines signal an asynchronous update
+        material.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    const surfaceMesh = new THREE.Mesh( genericGeometry, material );
+    surfaceMesh.position.set( 0, 0, 0);
+    scene.add( surfaceMesh );
+
+    //Choose an arbitrary point on the surface
+    let xval = 0.7
+    let yval = 0.7
+    let zval = multiFunct(xval,yval)
+    
+    //Create a box to help locate point in 3D space in rectangular coordinates
+    // const pointLocation = new THREE.BoxGeometry(xval, yval, zval);
+    // const edges = new THREE.EdgesGeometry( pointLocation );
+    // const edgeMaterial = new THREE.LineDashedMaterial( {
+    //     color: color1,
+    //     linewidth: 3,
+    //     scale: 1,
+    //     dashSize: 0.1,
+    //     gapSize: 0.03,
+    // } );
+    // const rectangularPrism = new THREE.LineSegments( edges, edgeMaterial );
+    // rectangularPrism.computeLineDistances();
+    // rectangularPrism.position.set( xval/2, yval/2, zval/2 );
+    // scene.add(rectangularPrism);
+    let xline = new THREE.CylinderGeometry( 0.003, 0.003, xval, 32 );
+    let yline = new THREE.CylinderGeometry( 0.003, 0.003, yval, 32 );
+    let zline = new THREE.CylinderGeometry(0.003,0.003,zval,32)
+    const materialLine = new THREE.MeshBasicMaterial( {color: color1} );
+    const materialLine2 = new THREE.MeshBasicMaterial( {color: color2} );
+    let lineX = new THREE.Mesh( xline, materialLine );
+    let lineY = new THREE.Mesh( yline, materialLine );
+    let lineZ = new THREE.Mesh( zline, materialLine2 );
+
+    lineY.translateY(yval/2);
+    lineY.translateX(xval);
+    scene.add( lineY );
+
+    lineX.rotateZ(Math.PI/2);
+    lineX.translateY(-xval/2);
+    lineX.translateX(yval);
+    scene.add( lineX );
+
+    lineZ.rotateX(Math.PI/2);
+    lineZ.translateX(xval);
+    lineZ.translateY(zval/2);
+    lineZ.translateZ(-yval);
+    scene.add( lineZ );
+
+    //label sides of box
+    const delta = 0.1;
+    //const aa= addTextLabel( 'a', xval , -shift/2 , 0, color=color4,font='Arial',size=.4);
+    //const bb= addTextLabel( 'b', -shift/2, yval , 0, color=color4,font='Arial',size=.4);
+    let ab= addTextLabel( '(a,b,0)', xval+delta, yval+delta , 0, color=color4,font='Arial',size=.4);
+    let cc= addTextLabel( 'f(a,b)', xval+delta , yval+delta , zval/2, color=color2,font='Arial',size=.4);
+    scene.add(ab,cc);
+
+    //Construct the point as a sphere? Should it be a disk?
+    const point = new THREE.SphereGeometry( 0.01, 20, 20 );
+    const pointMaterial = new THREE.MeshBasicMaterial( {color: color2, transparent: 0, opacity: 1} );
+    let sphere = new THREE.Mesh( point, pointMaterial );
+    sphere.position.set( xval, yval, zval );
+    scene.add( sphere );
+
+    const point2 = new THREE.SphereGeometry( 0.01, 20, 20 );
+    const pointMaterial2 = new THREE.MeshBasicMaterial( {color: color4, transparent: 0, opacity: 1} );
+    let sphere2 = new THREE.Mesh( point2, pointMaterial2 );
+    sphere2.position.set( xval, yval, 0 );
+    scene.add( sphere2 );
+
+    // Axes
+    scene.add(makeAxes());
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(xval, yval, zval);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Document loaded
+    $( document ).ready(function() {
+      // # Display first time
+      overlaySetup();
+      render();
+      controls.update();
+      autoRotate_until_clicked(controls, render);
+    });
+</script>
+
+
+</body>
+</html>

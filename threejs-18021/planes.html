@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script src="mitxThreeJsHelper.js"></script>
+<script>
+    // # Initialize scene and bounding box
+    var scene = createScene();
+    var renderer = createRenderer()
+
+    // # Initialize camera
+    var camera = createCamera();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 4, 4, 4 );
+    scene.add( camera );
+
+    // # Actors
+    // Scene: three planes with three text boxes
+    // Text boxes
+    var texts = [{"text": "P1", "x": 2.0, "y": 0.3, "z": 2.0, "color": "#000000"}, {"text": "P2", "x": 0.3, "y": 2.0, "z": 2.0, "color": "#000000"}, {"text": "P3", "x": 2.0, "y": 2.0, "z": 0.3, "color": "#000000"}];
+    for ( var i=0 ; i < texts.length ; i++ )
+        addLabel( texts[i].text, texts[i].x, texts[i].y, texts[i].z, texts[i].color, font='Georgia' );
+
+    // Planes
+    g = new THREE.PlaneGeometry( 4, 4);
+    material = new THREE.MeshBasicMaterial( {color: color1, side:THREE.DoubleSide, } );
+    plane = new THREE.Mesh( g, material);
+    scene.add(plane);
+
+    g = new THREE.PlaneGeometry( 4, 4);
+    g.rotateX(Math.PI/2);
+    material = new THREE.MeshBasicMaterial( {color: color2, side:THREE.DoubleSide, } );
+    plane = new THREE.Mesh( g, material);
+    scene.add(plane);
+
+    g = new THREE.PlaneGeometry( 4, 4);
+    g.rotateY(Math.PI/2);
+    material = new THREE.MeshBasicMaterial( {color: color3, side:THREE.DoubleSide, } );
+    plane = new THREE.Mesh( g, material);
+    scene.add(plane);
+
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0, 0, 0);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Display first time
+    render();
+    controls.update();
+</script>
+
+
+</body>
+</html>

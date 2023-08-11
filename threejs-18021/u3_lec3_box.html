@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+    /* # OVERLAY STYLE */
+    /* Don't put these in a stylesheet, they might not load before the javascript, defeating the purpose */
+    .overlay {
+        position:absolute;
+        text-align:center;
+        left:0;
+        top:0;
+        width:100%;
+        height:100%;
+        z-index:99;
+        display:block;
+        pointer-events:none; /* so any clicks on overlays get passed to the underlying canvas */
+    }
+    #overlay1 {
+        background-color: rgba(127, 127, 127, 1);
+        z-index:100;
+    }
+    #overlay2 {
+        cursor:pointer;
+        background-color: rgba(127, 127, 127, .5);
+        z-index:99;
+    }
+    .overlayText {
+        font-size:500%;
+        opacity:1;
+        font-family:Georgia;
+        position:absolute;
+        top:50%;
+        transform: translate(-50%,-50%);
+    }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<div class="overlay" id="overlay1">
+  <span id="overlay1Text" class="overlayText">
+    Loading 3D...
+  </span>
+</div>
+<!-- <div class="overlay" id="overlay2">
+  <span id="overlay2Text" class="overlayText" style="display:none">
+    Click to interact.
+  </span>
+</div> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="threejs_overlayEvents.js"></script>
+<script>
+    // # Initialize scene and bounding box
+    var scene = createScene();
+    var renderer = createRenderer()
+
+    // # Initialize camera
+    var camera = createCamera();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 2.3, 1, 2.3);
+    scene.add( camera );
+
+    // # Actors
+    //Construct the surface
+    var geometry = new THREE.BoxGeometry( 0.3, 0.5, 0.4 );
+    var material = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: color3, 
+        transparent: 0,
+        opacity: 1, 
+        shininess: 20
+    } );
+    var prism = new THREE.Mesh( geometry, material );
+    prism.position.set(0.35 ,0.45 ,0.4);
+    scene.add( prism );
+
+
+    //ADD THE LINES FOR BOX DIMENSION LABELS
+    var x = new THREE.CylinderGeometry( 0.003, 0.003, 0.7, 32 );
+    var y = new THREE.CylinderGeometry( 0.003, 0.003, 0.5 , 32 );
+    var z = new THREE.CylinderGeometry(0.003,0.003, 0.2 ,32);
+    var h = new THREE.CylinderGeometry(0.003,0.003, 1.41*0.2 ,32);
+    var materialLine = new THREE.MeshBasicMaterial( {color: color1} );
+    var materialLine2 = new THREE.MeshBasicMaterial( {color: color2} );
+
+    var xa = new THREE.Mesh( x, materialLine );
+    var xb = new THREE.Mesh( x, materialLine );
+    var yc = new THREE.Mesh( y, materialLine );
+    var yd = new THREE.Mesh( y, materialLine );
+    var zac = new THREE.Mesh( z, materialLine );
+    var zad = new THREE.Mesh( z, materialLine );
+    var zbc = new THREE.Mesh( z, materialLine );
+    var zbd = new THREE.Mesh( z, materialLine );
+    var hr = new THREE.Mesh( h, materialLine2);
+    var hs = new THREE.Mesh( h, materialLine2);
+
+    xa.translateY(0.35);
+    xa.translateX(0.2);
+    scene.add( xa );
+    xb.translateY(0.35);
+    xb.translateX(0.5);
+    scene.add( xb );
+
+    yc.rotateZ(Math.PI/2);
+    yd.rotateZ(Math.PI/2);
+    yc.translateY(-0.25);
+    yc.translateX(0.2);
+    yd.translateY(-0.25);
+    yd.translateX(0.7);
+    scene.add( yc, yd );
+
+    zac.rotateX(Math.PI/2);
+    zad.rotateX(Math.PI/2);
+    zbc.rotateX(Math.PI/2);
+    zbd.rotateX(Math.PI/2);
+    zac.translateX(0.2);
+    zac.translateY(0.1);
+    zac.translateZ(-0.2);
+    zad.translateX(0.5);
+    zad.translateY(0.1);
+    zad.translateZ(-0.2);
+    zbc.translateX(0.2);
+    zbc.translateY(0.1);
+    zbc.translateZ(-0.7);
+    zbd.translateX(0.5);
+    zbd.translateY(0.1);
+    zbd.translateZ(-0.7);
+    scene.add(zac, zad, zbc, zbd);
+
+    hr.rotateZ(-Math.PI/4);
+    hs.rotateZ(-Math.PI/4);
+    hr.translateY(1.41/10);
+    hs.translateY(1.41/10);
+    hr.translateZ(0.2);
+    hs.translateZ(0.6);
+    scene.add( hr, hs );
+
+    //ADD LABELS
+    a = addLabel( 'a', 0.2 , -0.05 , 0, color=color4 ,font='Georgia Italic',size=.4);
+    b = addLabel( 'b', 0.5 , -0.05 , 0, color=color4 ,font='Georgia Italic',size=.4);
+    c = addLabel( 'c', -0.05 , 0.2 , 0.02, color=color4 ,font='Georgia Italic',size=.4);
+    d = addLabel( 'd', -0.05 , 0.7 , 0.02, color=color4 ,font='Georgia Italic',size=.4);
+    r = addLabel( 'r', 0.05 , -0.03 , 0.2, color=color2 ,font='Georgia Italic',size=.4);
+    s = addLabel( 's', 0.05 , -0.03 , 0.6, color=color2 ,font='Georgia Italic',size=.4);
+    scene.add(a,b,c,d,r,s);
+
+    // Axes
+    scene.add(makeAxes());
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0.2, 0.2, 0.2);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Document loaded
+    $( document ).ready(function() {
+      // # Display first time
+      overlaySetup();
+      render();
+      controls.update();
+      autoRotate_until_clicked(controls, render);
+    });
+</script>
+
+
+</body>
+</html>

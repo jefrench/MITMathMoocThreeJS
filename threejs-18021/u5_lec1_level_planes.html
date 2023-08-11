@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+    /* # OVERLAY STYLE */
+    /* Don't put these in a stylesheet, they might not load before the javascript, defeating the purpose */
+    .overlay {
+        position:absolute;
+        text-align:center;
+        left:0;
+        top:0;
+        width:100%;
+        height:100%;
+        z-index:99;
+        display:block;
+        pointer-events:none; /* so any clicks on overlays get passed to the underlying canvas */
+    }
+    #overlay1 {
+        background-color: rgba(127, 127, 127, 1);
+        z-index:100;
+    }
+    #overlay2 {
+        cursor:pointer;
+        background-color: rgba(127, 127, 127, .5);
+        z-index:99;
+    }
+    .overlayText {
+        font-size:500%;
+        opacity:1;
+        font-family:Georgia;
+        position:absolute;
+        top:50%;
+        transform: translate(-50%,-50%);
+    }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<div class="overlay" id="overlay1">
+  <span id="overlay1Text" class="overlayText">
+    Loading 3D...
+  </span>
+</div>
+<!-- <div class="overlay" id="overlay2">
+  <span id="overlay2Text" class="overlayText" style="display:none">
+    Click to interact.
+  </span>
+</div> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="threejs_overlayEvents.js"></script>
+<script>
+    // # Initialize scene and bounding box
+    var scene = createScene();
+    var renderer = createRenderer()
+
+    // # Initialize camera
+    var camera = createOrthographicCameraDynamically();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( -2.5, 2.25, 1.4 );
+    scene.add( camera );
+
+    // # Actors
+    //Choose a normal vector
+    var zval = 1/3;
+    var xval = 2/3;
+    var yval = 2/3;
+
+    //Plane normal to a given vector
+    var planeGeom = function (a, b, target) {
+        var x = ((a-0.5) + (b-0.5));
+        var y = ((b-0.5) - (a-0.5));
+        var z = -2*x-2*y;
+
+        target.set(x,y,z);
+
+        return new THREE.Vector3(x, y, z); 
+    }
+    //Construct the surface
+    var plane = new THREE.ParametricGeometry(planeGeom, 32, 32);
+    var material0 = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: 0x66CDAA, 
+        transparent: 0,
+        opacity: 0.8, 
+        shininess: 20
+    } );
+    var loader = new THREE.TextureLoader()
+    loader.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(10, 20);
+        material0.map = texture;
+
+        // next two lines signal an asynchronous update
+        material0.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    var surfaceMesh0 = new THREE.Mesh( plane, material0 );
+
+    var material1 = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: 0x9ACD32, 
+        transparent: 0,
+        opacity: 0.8, 
+        shininess: 20
+    } );
+    var loader1 = new THREE.TextureLoader()
+    loader1.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(10, 20);
+        material1.map = texture;
+
+        // next two lines signal an asynchronous update
+        material1.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    var surfaceMesh1 = new THREE.Mesh( plane, material1 );
+    surfaceMesh1.position.set( 0.3*xval, 0.3*yval, 0.3*zval);
+
+    var material2 = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: 0xFFA500, 
+        transparent: 0,
+        opacity: 0.8, 
+        shininess: 20
+    } );
+    var loader2 = new THREE.TextureLoader()
+    loader2.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(10, 20);
+        material2.map = texture;
+
+        // next two lines signal an asynchronous update
+        material2.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    var surfaceMesh2 = new THREE.Mesh( plane, material2 );
+    surfaceMesh2.position.set( 0.6*xval, 0.6*yval, 0.6*zval);
+
+    //height neg 1
+    var materialNeg1 = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: 0x1E90FF, 
+        transparent: 0,
+        opacity: 0.8, 
+        shininess: 20
+    } );
+    var loaderNeg1 = new THREE.TextureLoader()
+    loaderNeg1.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(10, 20);
+        materialNeg1.map = texture;
+
+        // next two lines signal an asynchronous update
+        materialNeg1.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    var surfaceMeshNeg1 = new THREE.Mesh( plane, materialNeg1 );
+    surfaceMeshNeg1.position.set( -0.3*xval, -0.3*yval, -0.3*zval);
+
+
+
+    //height neg 2
+
+    var materialNeg2 = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: 0x4B0082, 
+        transparent: 0,
+        opacity: 0.8, 
+        shininess: 20
+    } );
+    var loaderNeg2 = new THREE.TextureLoader()
+    loaderNeg2.load(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAVElEQVRo3u3RAREAMAwCMTr/nlsd3PIKyJGUN0l2t3X9zGt/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgB0B9B1PXA3yVG5HyAAAAAElFTkSuQmCC',
+      function(texture) {
+        // function called when load is complete
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(10, 20);
+        materialNeg2.map = texture;
+
+        // next two lines signal an asynchronous update
+        materialNeg2.needsUpdate = true;
+        requestAnimationFrame(render);
+      }
+    );
+    var surfaceMeshNeg2 = new THREE.Mesh( plane, materialNeg2 );
+    surfaceMeshNeg2.position.set( -0.6*xval, -0.6*yval, -0.6*zval);
+
+    scene.add( surfaceMesh0, surfaceMesh1, surfaceMesh2, surfaceMeshNeg1, surfaceMeshNeg2 );
+
+
+    
+
+
+    // var arrow = new THREE.Vector3( xval, yval, zval);
+    // var group = new THREE.Group();
+    // group.add(fatArrow(arrow,color=transparentBlue));
+    // scene.add(group);
+    // //Create a box to help locate point in 3D space in rectangular coordinates
+    // var pointLocation = new THREE.BoxGeometry(xval, yval, zval);
+    // var edges = new THREE.EdgesGeometry( pointLocation );
+    // var edgeMaterial = new THREE.LineDashedMaterial( {
+    //     color: transparentOrange,
+    //     linewidth: 10,
+    //     scale: 2,
+    //     dashSize: 0.1,
+    //     gapSize: 0.05,
+    // } );
+
+    //label sides of box
+    // var delta = 0.05;
+    // var xx1 = addLabel( '1', zval, -delta , 0, color=color5,font='Arial',size=.3);
+    // var xx2 = addLabel( '2', 2*zval, -delta , 0, color=color5,font='Arial',size=.3);
+    // var xx3 = addLabel( '3', 3*zval, -delta , 0, color=color5,font='Arial',size=.3);
+    // var yy1 = addLabel( '1', -delta, yval/2 , 0, color=color5,font='Arial',size=.3);
+    // var yy2 = addLabel( '2', -delta, yval , 0, color=color5,font='Arial',size=.3);
+    // var yy3 = addLabel( '3', -delta, 3*yval/2 , 0, color=color5,font='Arial',size=.3);
+    // var zz1 = addLabel( '1', -delta, 0 , zval, color=color5,font='Arial',size=.3);
+    // var zz2 = addLabel( '2', -delta, 0 , 2*zval, color=color5,font='Arial',size=.3);
+    // var zz3 = addLabel( '3', -delta, 0 , 3*zval, color=color5,font='Arial',size=.3);
+    // scene.add( xx1,xx2,xx3,yy1,yy2,yy3,zz1,zz2,zz3 );
+
+
+    // Axes
+    scene.add(makeAxes());
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0, 0, 0);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Document loaded
+    $( document ).ready(function() {
+      // # Display first time
+      overlaySetup();
+      render();
+      controls.update();
+      autoRotate_until_clicked(controls, render);
+    });
+</script>
+
+
+</body>
+</html>

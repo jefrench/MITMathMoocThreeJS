@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<style>
+    body { margin: 0px; overflow: hidden; }
+</style>
+</head>
+
+<body>
+<canvas style="outline:0"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r127/three.min.js"></script>
+<script src="threejs_OrbitControls.js"></script>
+<script src="threejs_mitxThreeJsHelper.js"></script>
+<script>
+    // # Initialize scene and bounding box
+    var scene = createScene();
+    var renderer = createRenderer()
+
+    // # Initialize camera
+    var camera = createCamera();
+    camera.up.set( 0, 0, 1 );
+    camera.position.set( 1.5, 1.5, 3 );
+    scene.add( camera );
+
+    // # Actors
+    // cylinder with arrow on top and propeller wings
+    const cylinderGeometry = new THREE.CylinderGeometry(0.09, 0.09, 1, 32);
+    const cylinderMaterial = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: color1, 
+        transparent: 0,
+        opacity: 1, 
+        shininess: 20
+    } );
+    const cylinderMesh = new THREE.Mesh(cylinderGeometry, cylinderMaterial); 
+    cylinderMesh.position.set( 0, 0, 0);
+    cylinderMesh.rotateX(Math.PI/2);
+    scene.add(cylinderMesh);
+
+    const wing1Geometry = new THREE.BoxGeometry(0.05, 1.5, 0.6);
+    const wing1Material = new THREE.MeshPhongMaterial( { 
+        side: THREE.DoubleSide,
+        color: color3, 
+        transparent: 0,
+        opacity: 1, 
+        shininess: 20
+    } );
+    const wing1Mesh = new THREE.Mesh(wing1Geometry, wing1Material);
+    scene.add(wing1Mesh);
+    const wing2Mesh = wing1Mesh.clone();
+    wing2Mesh.rotateZ(Math.PI/2);
+    scene.add(wing2Mesh);
+    const arrowLength = 1.6;
+    const arrowThickness = 0.02;
+    scene.add(drawVector(
+      new THREE.Vector3(-arrowLength, 0, 0),
+      {
+        origin: new THREE.Vector3(arrowLength/2,0,0.5+arrowThickness),
+        color: 'black',
+        headHeight: 0.2,
+        thickness: arrowThickness,
+      }
+    ));
+
+
+    // # Lights
+    // Ambient light
+    var ambient = {"color":"#7f7f7f"};
+    scene.add( new THREE.AmbientLight( ambient.color, 1 ) );
+
+    // Custom lights
+    var lights = [{"x":-5, "y":3, "z":0, "color":"#7f7f7f", "parent":"camera"}];
+    for ( var i=0 ; i < lights.length ; i++ ) {
+        var light = new THREE.DirectionalLight( lights[i].color, 1 );
+        light.position.set( lights[i].x, lights[i].y, lights[i].z );
+        if ( lights[i].parent === 'camera' ) {
+            light.target.position.set(0, 0, 0);
+            scene.add( light.target );
+            camera.add( light );
+        } else scene.add( light );
+    }
+
+    // # Event listeners
+    var controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set(0, 0, 0);
+    function render() {
+        renderer.render( scene, camera );
+    }
+    controls.addEventListener( 'change', function() { render(); } );
+
+    setBoundingBox({"x":-2.0, "y":-2.0, "z":-2.0}, {"x":2.0, "y":2.0, "z":2.0});
+    window.addEventListener( 'resize', function() {
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        updateCameraAspect( camera, window.innerWidth / window.innerHeight );
+        render();
+    } );
+
+    // # Display first time
+    render();
+    controls.update();
+    autoRotate_until_clicked(controls, render, {rotateSpeed:4});
+</script>
+
+
+</body>
+</html>
